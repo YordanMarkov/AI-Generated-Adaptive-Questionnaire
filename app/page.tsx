@@ -2,95 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  initialQuestions,
+  MAX_ANSWERS,
+  type Answer,
+  type CareerReport,
+  type HistoryEntry,
+  type Question,
+} from "@/lib/questionnaire";
+
 type Stage = "welcome" | "questionnaire" | "loading" | "result";
-type Answer = string | number | string[];
-
-type Question = {
-  id: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  type: "choice" | "slider" | "text" | "ranking" | "yes-no";
-  options?: string[];
-  minLabel?: string;
-  maxLabel?: string;
-  personalized?: boolean;
-};
-
-const questions: Question[] = [
-  {
-    id: "energy",
-    eyebrow: "Let’s begin broadly",
-    title: "Which kind of work gives you the most energy?",
-    description:
-      "Choose the answer that feels most natural. There are no right or wrong directions here.",
-    type: "choice",
-    options: [
-      "Building and making things",
-      "Understanding people and their needs",
-      "Finding patterns in complex information",
-      "Organizing people around a shared goal",
-    ],
-  },
-  {
-    id: "environment",
-    eyebrow: "Your ideal environment",
-    title: "What does a satisfying workday feel like to you?",
-    description:
-      "Describe the moments, pace, or kind of progress that would make you look forward to tomorrow.",
-    type: "text",
-  },
-  {
-    id: "collaboration",
-    eyebrow: "How you like to work",
-    title: "Where do you sit between deep focus and constant collaboration?",
-    description:
-      "Use the scale to show your natural preference. Neither end is better than the other.",
-    type: "slider",
-    minLabel: "Independent focus",
-    maxLabel: "Highly collaborative",
-  },
-  {
-    id: "craft",
-    eyebrow: "A pattern is emerging",
-    title: "When you build something, which part pulls you in first?",
-    description:
-      "Your earlier answers suggest you value making ideas tangible. Let’s find out where that instinct leads.",
-    type: "choice",
-    personalized: true,
-    options: [
-      "How it looks and feels to use",
-      "How the underlying system works",
-      "Whether it solves the right problem",
-      "How the team can deliver it well",
-    ],
-  },
-  {
-    id: "priorities",
-    eyebrow: "Let’s sharpen the picture",
-    title: "Rank what matters most in your future career.",
-    description:
-      "Tap items in priority order, from most important to least important.",
-    type: "ranking",
-    personalized: true,
-    options: [
-      "Creative expression",
-      "Technical mastery",
-      "Positive impact",
-      "Stability and balance",
-    ],
-  },
-  {
-    id: "ambiguity",
-    eyebrow: "One final distinction",
-    title: "Do you enjoy turning an unclear idea into a clear, usable experience?",
-    description:
-      "This helps distinguish between a few closely matched directions in your profile.",
-    type: "yes-no",
-    personalized: true,
-    options: ["Yes, that excites me", "Sometimes, with the right context", "No, I prefer defined problems"],
-  },
-];
 
 const icons = {
   compass: (
@@ -114,12 +35,6 @@ const icons = {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
-    </svg>
-  ),
-  shield: (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M12 3 5 6v5c0 4.5 2.7 8.1 7 10 4.3-1.9 7-5.5 7-10V6l-7-3Z" />
-      <path d="m9 12 2 2 4-4" />
     </svg>
   ),
   back: (
@@ -169,9 +84,6 @@ function Header({
       <button className="brand-button" onClick={onHome} aria-label="Return home">
         <HomeMark />
       </button>
-      {!compact && (
-        <span className="privacy-note">{icons.shield} Private by design</span>
-      )}
     </header>
   );
 }
@@ -235,7 +147,7 @@ function Welcome({ onStart }: { onStart: () => void }) {
 }
 
 function ProgressRing({ current }: { current: number }) {
-  const progress = ((current + 1) / questions.length) * 100;
+  const progress = ((current + 1) / MAX_ANSWERS) * 100;
   return (
     <div
       className="progress-ring"
@@ -244,7 +156,7 @@ function ProgressRing({ current }: { current: number }) {
     >
       <div>
         <strong>{current + 1}</strong>
-        <span>of {questions.length}</span>
+        <span>up to {MAX_ANSWERS}</span>
       </div>
     </div>
   );
@@ -350,6 +262,7 @@ function QuestionInput({
 }
 
 function Questionnaire({
+  question,
   index,
   answers,
   onAnswer,
@@ -357,6 +270,7 @@ function Questionnaire({
   onContinue,
   onHome,
 }: {
+  question: Question;
   index: number;
   answers: Record<string, Answer>;
   onAnswer: (answer: Answer) => void;
@@ -364,9 +278,9 @@ function Questionnaire({
   onContinue: () => void;
   onHome: () => void;
 }) {
-  const question = questions[index];
   const value = answers[question.id];
   const isValid =
+    question.type === "slider" ||
     typeof value === "number" ||
     (typeof value === "string" && value.trim().length > 1) ||
     (Array.isArray(value) && value.length === question.options?.length);
@@ -387,17 +301,17 @@ function Questionnaire({
                 <small>Interests and work style</small>
               </div>
             </div>
-            <div className={`journey-line ${index >= 2 ? "active" : ""}`} />
-            <div className={`journey-status ${index >= 2 ? "complete" : ""}`}>
-              <span>{index >= 2 ? icons.check : "2"}</span>
+            <div className={`journey-line ${index >= 3 ? "active" : ""}`} />
+            <div className={`journey-status ${index >= 3 ? "complete" : ""}`}>
+              <span>{index >= 3 ? icons.check : "2"}</span>
               <div>
                 <strong>Deep dive</strong>
                 <small>Values and preferences</small>
               </div>
             </div>
-            <div className={`journey-line ${index >= 5 ? "active" : ""}`} />
-            <div className={`journey-status ${index >= 5 ? "complete" : ""}`}>
-              <span>{index >= 5 ? icons.check : "3"}</span>
+            <div className={`journey-line ${index >= 7 ? "active" : ""}`} />
+            <div className={`journey-status ${index >= 7 ? "complete" : ""}`}>
+              <span>{index >= 7 ? icons.check : "3"}</span>
               <div>
                 <strong>Direction</strong>
                 <small>Your personal report</small>
@@ -447,12 +361,22 @@ function Questionnaire({
   );
 }
 
-function LoadingScreen() {
+function LoadingScreen({
+  error,
+  onRetry,
+  creatingReport,
+}: {
+  error: string | null;
+  onRetry: () => void;
+  creatingReport: boolean;
+}) {
   const [message, setMessage] = useState(0);
   const messages = [
     "Finding the strongest signals in your answers",
     "Comparing a few promising directions",
-    "Choosing the most useful follow-up question",
+    creatingReport
+      ? "Turning your answer patterns into a clear report"
+      : "Choosing the most useful follow-up questions",
   ];
 
   useEffect(() => {
@@ -471,22 +395,73 @@ function LoadingScreen() {
         <span className="orbit orbit-two" />
         <span className="thinking-core">{icons.sparkle}</span>
       </div>
-      <p className="question-eyebrow">Shaping your next question</p>
-      <h1>Thinking with your answers...</h1>
-      <p className="loading-message">{messages[message]}</p>
-      <div className="loading-dots">
-        <span />
-        <span />
-        <span />
-      </div>
+      <p className="question-eyebrow">
+        {creatingReport
+          ? "Creating your direction report"
+          : "Shaping your next questions"}
+      </p>
+      <h1>
+        {error ? "Something interrupted the flow." : "Thinking with your answers..."}
+      </h1>
+      {error ? (
+        <div className="loading-error">
+          <p>{error}</p>
+          <button className="primary-button" onClick={onRetry}>
+            Try again <span className="button-icon">{icons.arrow}</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="loading-message">{messages[message]}</p>
+          <div className="loading-dots">
+            <span />
+            <span />
+            <span />
+          </div>
+        </>
+      )}
     </main>
   );
 }
 
-function Result({ onRestart }: { onRestart: () => void }) {
+function Result({
+  report,
+  answerCount,
+  onRestart,
+}: {
+  report: CareerReport;
+  answerCount: number;
+  onRestart: () => void;
+}) {
   const downloadReport = () => {
-    const report = `# Career Direction Report\n\n## Primary direction\nProduct-minded Frontend Developer (86% match)\n\nYou are energized by making ideas tangible, combining visual care with technical problem-solving, and turning ambiguity into experiences people can use.\n\n## Alternative directions\n- UX Engineer\n- Product Designer\n- Creative Technologist\n\n## Next steps\n1. Build a small interactive product from research to polished interface.\n2. Explore design systems and accessibility.\n3. Talk with a frontend developer and a product designer about their day-to-day work.\n`;
-    const url = URL.createObjectURL(new Blob([report], { type: "text/markdown" }));
+    const markdown = `# Career Direction Report
+
+## Primary direction
+${report.primaryDirection} (${report.confidence}% match)
+
+${report.summary}
+
+## Why this direction fits
+${report.reasoning}
+
+${report.signals.map((signal) => `- ${signal}`).join("\n")}
+
+## Alternative directions
+${report.alternatives
+  .map(
+    (alternative) =>
+      `- **${alternative.title} (${alternative.match}%)**: ${alternative.explanation}`,
+  )
+  .join("\n")}
+
+## Next steps
+${report.nextSteps.map((step, index) => `${index + 1}. ${step}`).join("\n")}
+
+> ${report.caveat}
+`;
+    const url = URL.createObjectURL(
+      new Blob([markdown], { type: "text/markdown" }),
+    );
     const link = document.createElement("a");
     link.href = url;
     link.download = "career-direction-report.md";
@@ -501,20 +476,16 @@ function Result({ onRestart }: { onRestart: () => void }) {
       <section className="result-hero">
         <div className="result-kicker">{icons.sparkle} Your direction</div>
         <p className="section-label">Primary direction</p>
-        <h1>Product-minded<br />Frontend Developer</h1>
-        <p>
-          You seem most energized where <strong>creative craft</strong>,{" "}
-          <strong>technical problem-solving</strong>, and{" "}
-          <strong>human needs</strong> meet.
-        </p>
+        <h1>{report.primaryDirection}</h1>
+        <p>{report.summary}</p>
         <div className="confidence-row">
           <div className="confidence-score">
-            <span>86</span>
+            <span>{report.confidence}</span>
             <small>% match</small>
           </div>
           <div className="confidence-copy">
-            <strong>Strong signal</strong>
-            <span>Based on 6 answers across 4 career dimensions</span>
+            <strong>{report.confidenceLabel}</strong>
+            <span>Based on {answerCount} adaptive answers</span>
           </div>
         </div>
       </section>
@@ -529,25 +500,14 @@ function Result({ onRestart }: { onRestart: () => void }) {
                 <h2>Why this direction fits</h2>
               </div>
             </div>
-            <p>
-              Your answers consistently point toward work where you can make
-              abstract ideas visible and useful. You enjoy the craft of an
-              interface, but you also care about the system beneath it and the
-              problem it solves.
-            </p>
+            <p>{report.reasoning}</p>
             <div className="signal-list">
-              <div>
-                <span>{icons.check}</span>
-                <p><strong>You want to build tangible things</strong> and see the result of your work.</p>
-              </div>
-              <div>
-                <span>{icons.check}</span>
-                <p><strong>You balance focus with collaboration,</strong> a strong fit for cross-functional product teams.</p>
-              </div>
-              <div>
-                <span>{icons.check}</span>
-                <p><strong>You are comfortable with ambiguity</strong> when it leads to a clearer experience.</p>
-              </div>
+              {report.signals.map((signal) => (
+                <div key={signal}>
+                  <span>{icons.check}</span>
+                  <p>{signal}</p>
+                </div>
+              ))}
             </div>
           </article>
 
@@ -560,9 +520,12 @@ function Result({ onRestart }: { onRestart: () => void }) {
               </div>
             </div>
             <div className="next-steps">
-              <div><span>01</span><p>Build a small product from rough idea to polished, accessible interface.</p></div>
-              <div><span>02</span><p>Explore design systems, interaction design, and modern frontend architecture.</p></div>
-              <div><span>03</span><p>Compare a frontend developer’s day with a product designer’s day.</p></div>
+              {report.nextSteps.map((step, index) => (
+                <div key={step}>
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <p>{step}</p>
+                </div>
+              ))}
             </div>
           </article>
         </div>
@@ -571,28 +534,25 @@ function Result({ onRestart }: { onRestart: () => void }) {
           <article className="report-card alternatives-card">
             <p className="section-label">Also worth exploring</p>
             <h2>Nearby directions</h2>
-            <div className="alternative">
-              <div><strong>UX Engineer</strong><span>78%</span></div>
-              <div className="match-bar"><span style={{ width: "78%" }} /></div>
-              <p>More emphasis on prototyping and the bridge between design and code.</p>
-            </div>
-            <div className="alternative">
-              <div><strong>Product Designer</strong><span>71%</span></div>
-              <div className="match-bar"><span style={{ width: "71%" }} /></div>
-              <p>More focus on research, flows, and visual communication.</p>
-            </div>
-            <div className="alternative">
-              <div><strong>Creative Technologist</strong><span>65%</span></div>
-              <div className="match-bar"><span style={{ width: "65%" }} /></div>
-              <p>More experimentation with emerging interfaces and technology.</p>
-            </div>
+            {report.alternatives.map((alternative) => (
+              <div className="alternative" key={alternative.title}>
+                <div>
+                  <strong>{alternative.title}</strong>
+                  <span>{alternative.match}%</span>
+                </div>
+                <div className="match-bar">
+                  <span style={{ width: `${alternative.match}%` }} />
+                </div>
+                <p>{alternative.explanation}</p>
+              </div>
+            ))}
           </article>
 
           <article className="reflection-card">
             <span>{icons.sparkle}</span>
             <p>
               <strong>This is a direction, not a verdict.</strong>
-              Use it as a lens for experiments, conversations, and reflection.
+              {report.caveat}
             </p>
           </article>
         </aside>
@@ -614,35 +574,125 @@ function Result({ onRestart }: { onRestart: () => void }) {
 export default function Home() {
   const [stage, setStage] = useState<Stage>("welcome");
   const [index, setIndex] = useState(0);
+  const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
+  const [report, setReport] = useState<CareerReport | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [creatingReport, setCreatingReport] = useState(false);
 
-  const currentAnswer = useMemo(() => answers[questions[index]?.id], [answers, index]);
+  const currentAnswer = useMemo(
+    () => answers[questions[index]?.id],
+    [answers, index, questions],
+  );
 
   const goHome = () => {
     setStage("welcome");
     setIndex(0);
+    setQuestions(initialQuestions);
     setAnswers({});
+    setReport(null);
+    setError(null);
+    setCreatingReport(false);
   };
 
-  const continueQuestionnaire = () => {
-    if (currentAnswer === undefined) return;
+  const buildHistory = (
+    answerState: Record<string, Answer>,
+    throughIndex: number,
+  ): HistoryEntry[] =>
+    questions.slice(0, throughIndex + 1).flatMap((question) => {
+      const answer = answerState[question.id];
+      return answer === undefined ? [] : [{ question, answer }];
+    });
 
-    if (index === questions.length - 1) {
-      setStage("loading");
-      window.setTimeout(() => setStage("result"), 2300);
+  const createReport = async (history: HistoryEntry[]) => {
+    setCreatingReport(true);
+    setError(null);
+    setStage("loading");
+
+    try {
+      const response = await fetch("/api/questionnaire/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.report) {
+        throw new Error(data.error || "The report could not be created.");
+      }
+
+      setReport(data.report);
+      setStage("result");
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "The report could not be created.",
+      );
+    }
+  };
+
+  const generateNextRound = async (history: HistoryEntry[]) => {
+    if (history.length >= MAX_ANSWERS) {
+      await createReport(history);
       return;
     }
 
-    if (index === 2) {
-      setStage("loading");
-      window.setTimeout(() => {
-        setIndex((current) => current + 1);
-        setStage("questionnaire");
-      }, 2300);
+    setCreatingReport(false);
+    setError(null);
+    setStage("loading");
+
+    try {
+      const response = await fetch("/api/questionnaire/next", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.error || "The next questions could not be generated.",
+        );
+      }
+
+      if (data.shouldStop) {
+        await createReport(history);
+        return;
+      }
+
+      if (!Array.isArray(data.questions) || data.questions.length !== 2) {
+        throw new Error("The generated question round was incomplete.");
+      }
+
+      setQuestions((current) => [...current, ...data.questions]);
+      setIndex(index + 1);
+      setStage("questionnaire");
+    } catch (requestError) {
+      setError(
+        requestError instanceof Error
+          ? requestError.message
+          : "The next questions could not be generated.",
+      );
+    }
+  };
+
+  const continueQuestionnaire = async () => {
+    const question = questions[index];
+    const answer =
+      currentAnswer ?? (question.type === "slider" ? 50 : undefined);
+
+    if (answer === undefined) return;
+
+    const nextAnswers = { ...answers, [question.id]: answer };
+    setAnswers(nextAnswers);
+
+    if (index < questions.length - 1) {
+      setIndex((current) => current + 1);
       return;
     }
 
-    setIndex((current) => current + 1);
+    await generateNextRound(buildHistory(nextAnswers, index));
   };
 
   return (
@@ -655,6 +705,7 @@ export default function Home() {
       )}
       {stage === "questionnaire" && (
         <Questionnaire
+          question={questions[index]}
           index={index}
           answers={answers}
           onAnswer={(answer) =>
@@ -664,12 +715,28 @@ export default function Home() {
             if (index === 0) goHome();
             else setIndex((current) => current - 1);
           }}
-          onContinue={continueQuestionnaire}
+          onContinue={() => void continueQuestionnaire()}
           onHome={goHome}
         />
       )}
-      {stage === "loading" && <LoadingScreen />}
-      {stage === "result" && <Result onRestart={goHome} />}
+      {stage === "loading" && (
+        <LoadingScreen
+          error={error}
+          creatingReport={creatingReport}
+          onRetry={() => {
+            const history = buildHistory(answers, index);
+            if (creatingReport) void createReport(history);
+            else void generateNextRound(history);
+          }}
+        />
+      )}
+      {stage === "result" && report && (
+        <Result
+          report={report}
+          answerCount={Object.keys(answers).length}
+          onRestart={goHome}
+        />
+      )}
     </div>
   );
 }

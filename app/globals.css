@@ -129,20 +129,6 @@ input:focus-visible {
   gap: 24px;
 }
 
-.privacy-note {
-  align-items: center;
-  color: var(--muted);
-  display: flex;
-  font-size: 12px;
-  gap: 7px;
-}
-
-.privacy-note svg {
-  color: var(--aqua);
-  height: 15px;
-  width: 15px;
-}
-
 .welcome {
   min-height: 100vh;
   padding: 150px 32px 48px;
@@ -958,6 +944,20 @@ input:focus-visible {
   min-height: 24px;
 }
 
+.loading-error {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 480px;
+}
+
+.loading-error p {
+  color: var(--muted);
+  line-height: 1.65;
+  margin: 0;
+}
+
 .loading-dots {
   display: flex;
   gap: 6px;
@@ -1370,10 +1370,6 @@ input:focus-visible {
   .site-header {
     height: 76px;
     padding: 0 20px;
-  }
-
-  .privacy-note {
-    display: none;
   }
 
   .welcome {

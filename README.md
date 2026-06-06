@@ -7,6 +7,15 @@ discovery.
 
 Requires Node.js 22.13 or newer.
 
+Create `.env.local` or `.env` in the repository root:
+
+```text
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+The server defaults to `gpt-5.4-mini`. Override it with `OPENAI_MODEL` if
+needed. Never prefix the API key with `NEXT_PUBLIC_`.
+
 ```bash
 npm ci
 npm run dev
