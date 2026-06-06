@@ -146,17 +146,25 @@ function Welcome({ onStart }: { onStart: () => void }) {
   );
 }
 
-function ProgressRing({ current }: { current: number }) {
-  const progress = ((current + 1) / MAX_ANSWERS) * 100;
+function ProgressRing({
+  current,
+  confidence,
+}: {
+  current: number;
+  confidence: number | null;
+}) {
+  const progress = Math.round(
+    (confidence ?? Math.min(0.35, (current + 1) * 0.1)) * 100,
+  );
   return (
     <div
       className="progress-ring"
       style={{ "--progress": `${progress * 3.6}deg` } as React.CSSProperties}
-      aria-label={`${Math.round(progress)} percent complete`}
+      aria-label={`${progress} percent career-direction clarity`}
     >
       <div>
-        <strong>{current + 1}</strong>
-        <span>up to {MAX_ANSWERS}</span>
+        <strong>{progress}</strong>
+        <span>% clarity</span>
       </div>
     </div>
   );
@@ -241,15 +249,41 @@ function QuestionInput({
   }
 
   const options = question.options ?? [];
+  const isMultiSelect = question.type === "multi-select";
+  const selectedValues = Array.isArray(value) ? value : [];
+
   return (
-    <div className={question.type === "yes-no" ? "choice-grid compact-choices" : "choice-grid"}>
+    <div
+      className={
+        question.type === "yes-no"
+          ? "choice-grid compact-choices"
+          : "choice-grid"
+      }
+    >
+      {isMultiSelect && (
+        <p className="selection-hint">Select all that apply</p>
+      )}
       {options.map((option, index) => {
-        const selected = value === option;
+        const selected = isMultiSelect
+          ? selectedValues.includes(option)
+          : value === option;
         return (
           <button
             key={option}
             className={selected ? "choice-option selected" : "choice-option"}
-            onClick={() => onChange(option)}
+            onClick={() => {
+              if (!isMultiSelect) {
+                onChange(option);
+                return;
+              }
+
+              onChange(
+                selected
+                  ? selectedValues.filter((item) => item !== option)
+                  : [...selectedValues, option],
+              );
+            }}
+            aria-pressed={selected}
           >
             <span className="choice-key">{String.fromCharCode(65 + index)}</span>
             <span>{option}</span>
@@ -264,6 +298,7 @@ function QuestionInput({
 function Questionnaire({
   question,
   index,
+  confidence,
   answers,
   onAnswer,
   onBack,
@@ -272,6 +307,7 @@ function Questionnaire({
 }: {
   question: Question;
   index: number;
+  confidence: number | null;
   answers: Record<string, Answer>;
   onAnswer: (answer: Answer) => void;
   onBack: () => void;
@@ -283,7 +319,12 @@ function Questionnaire({
     question.type === "slider" ||
     typeof value === "number" ||
     (typeof value === "string" && value.trim().length > 1) ||
-    (Array.isArray(value) && value.length === question.options?.length);
+    (question.type === "multi-select" &&
+      Array.isArray(value) &&
+      value.length > 0) ||
+    (question.type === "ranking" &&
+      Array.isArray(value) &&
+      value.length === question.options?.length);
 
   return (
     <main className="questionnaire-page">
@@ -293,7 +334,7 @@ function Questionnaire({
         <aside className="journey-panel">
           <div>
             <p className="section-label">Your discovery</p>
-            <ProgressRing current={index} />
+            <ProgressRing current={index} confidence={confidence} />
             <div className="journey-status complete">
               <span>{icons.check}</span>
               <div>
@@ -441,6 +482,9 @@ ${report.primaryDirection} (${report.confidence}% match)
 
 ${report.summary}
 
+## Related careers
+${report.relatedCareers.map((career) => `- ${career}`).join("\n")}
+
 ## Why this direction fits
 ${report.reasoning}
 
@@ -477,6 +521,16 @@ ${report.nextSteps.map((step, index) => `${index + 1}. ${step}`).join("\n")}
         <div className="result-kicker">{icons.sparkle} Your direction</div>
         <p className="section-label">Primary direction</p>
         <h1>{report.primaryDirection}</h1>
+        <ul className="related-careers" aria-label="Related careers">
+          {report.relatedCareers.map((career, index) => (
+            <li key={career}>
+              {career}
+              <span className="career-separator" aria-hidden="true">
+                {index < report.relatedCareers.length - 1 ? " · " : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
         <p>{report.summary}</p>
         <div className="confidence-row">
           <div className="confidence-score">
@@ -577,6 +631,7 @@ export default function Home() {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const [answers, setAnswers] = useState<Record<string, Answer>>({});
   const [report, setReport] = useState<CareerReport | null>(null);
+  const [confidence, setConfidence] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creatingReport, setCreatingReport] = useState(false);
 
@@ -591,6 +646,7 @@ export default function Home() {
     setQuestions(initialQuestions);
     setAnswers({});
     setReport(null);
+    setConfidence(null);
     setError(null);
     setCreatingReport(false);
   };
@@ -656,12 +712,24 @@ export default function Home() {
         );
       }
 
+      if (typeof data.confidence === "number") {
+        setConfidence(data.confidence);
+      }
+
       if (data.shouldStop) {
         await createReport(history);
         return;
       }
 
-      if (!Array.isArray(data.questions) || data.questions.length !== 2) {
+      const expectedQuestionCount = Math.min(
+        2,
+        MAX_ANSWERS - history.length,
+      );
+
+      if (
+        !Array.isArray(data.questions) ||
+        data.questions.length !== expectedQuestionCount
+      ) {
         throw new Error("The generated question round was incomplete.");
       }
 
@@ -707,6 +775,7 @@ export default function Home() {
         <Questionnaire
           question={questions[index]}
           index={index}
+          confidence={confidence}
           answers={answers}
           onAnswer={(answer) =>
             setAnswers((current) => ({ ...current, [questions[index].id]: answer }))

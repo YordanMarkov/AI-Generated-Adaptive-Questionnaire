@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { getOpenAIClient, OPENAI_MODEL } from "@/lib/openai";
 import {
+  containsUnexpectedScript,
   MIN_ANSWERS,
   serializeHistory,
   sessionRequestSchema,
@@ -11,7 +12,8 @@ import {
 export const runtime = "nodejs";
 
 const reportSchema = z.object({
-  primaryDirection: z.string().min(1).max(120),
+  primaryDirection: z.string().min(2).max(52),
+  relatedCareers: z.array(z.string().min(2).max(100)).min(3).max(5),
   confidence: z.number().int().min(1).max(100),
   confidenceLabel: z.string().min(1).max(40),
   summary: z.string().min(1).max(420),
@@ -41,31 +43,76 @@ export async function POST(request: Request) {
       );
     }
 
-    const response = await getOpenAIClient().responses.parse({
-      model: OPENAI_MODEL,
-      store: false,
-      reasoning: { effort: "low" },
-      max_output_tokens: 3000,
-      instructions: `Create an explainable career direction report from the questionnaire history.
+    let validationFeedback = "";
 
-This is reflective guidance, not a definitive assessment. Use only evidence in the answers. Do not invent traits, credentials, experience, or preferences. Do not diagnose personality, health, or mental state.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const response = await getOpenAIClient().responses.parse({
+        model: OPENAI_MODEL,
+        store: false,
+        reasoning: { effort: "low" },
+        max_output_tokens: 3200,
+        instructions: `Create an explainable career direction report from the questionnaire history.
 
-Choose one useful primary direction, plus exactly three meaningfully distinct alternatives. Explain the answer patterns that support the primary direction and acknowledge ambiguity. Confidence should reflect evidence quality and consistency, not certainty about the person's future.
+This is reflective guidance, not a definitive assessment. Use only evidence in the answers. Do not invent traits, credentials, experience, or preferences. Do not diagnose personality, health, or mental state. Write only in clear English using the Latin alphabet. Never output Chinese, Japanese, Korean, Cyrillic, Arabic, emoji, or decorative symbols.
 
-Each signal must be a concise, user-friendly statement linked to an answer pattern. Each next step must be a small, practical experiment such as a project, conversation, course topic, or role comparison. The caveat must explicitly preserve user autonomy.`,
-      input: `Create the final report from these ${payload.history.length} answers:
+Consider the full labor market equally: retail, customer service, hospitality, food service, cleaning, facilities, logistics, transport, skilled trades, manufacturing, construction, agriculture, healthcare, care work, education, public service, administration, finance, sales, arts, media, law, science, entrepreneurship, management, technology, and other supported work. Cashier, shop assistant, server, receptionist, driver, warehouse worker, cleaner, caregiver, teacher, mechanic, electrician, and office administrator are all legitimate primary results. Never convert retail "front end" into frontend software development without explicit evidence of coding or digital interface work.
+
+The primaryDirection is a single recognizable occupation or concise career family:
+- 2 to 5 words;
+- no slash, ampersand, subtitle, explanation, or combined list;
+- specific enough to search for as a job title;
+- at most 52 characters.
+
+Put 3 to 5 other relevant job titles in relatedCareers. These may be longer and should appear as quick possibilities near the primary title. Then provide exactly three more detailed alternatives with match values and explanations. Do not duplicate the primary title across those lists.
+
+Explain the answer patterns supporting the result and acknowledge ambiguity. Confidence reflects evidence quality and consistency, not certainty about the person's future. Each signal must connect to an answer pattern. Each next step must be a small practical experiment, conversation, training topic, shadowing opportunity, or role comparison. The caveat must preserve user autonomy.
+${validationFeedback}`,
+        input: `Create the final report from these ${payload.history.length} answers:
 
 ${serializeHistory(payload.history)}`,
-      text: {
-        format: zodTextFormat(reportSchema, "career_direction_report"),
-      },
-    });
+        text: {
+          format: zodTextFormat(reportSchema, "career_direction_report"),
+        },
+      });
 
-    if (!response.output_parsed) {
-      throw new Error("The model did not return a structured report.");
+      const report = response.output_parsed;
+
+      if (!report) {
+        validationFeedback =
+          "\nThe previous attempt returned no structured report. Return every required field.";
+        continue;
+      }
+
+      const primaryWords = report.primaryDirection.trim().split(/\s+/).length;
+      const allText = JSON.stringify(report);
+      const normalizedPrimary = report.primaryDirection.trim().toLowerCase();
+      const distinctRelatedCareers = new Set(
+        report.relatedCareers.map((title) => title.trim().toLowerCase()),
+      );
+
+      if (containsUnexpectedScript(allText)) {
+        validationFeedback =
+          "\nThe previous report used a prohibited writing system. Regenerate entirely in English with Latin characters.";
+        continue;
+      }
+
+      if (
+        primaryWords > 5 ||
+        /[/&:|]/.test(report.primaryDirection) ||
+        report.relatedCareers.some(
+          (title) => title.trim().toLowerCase() === normalizedPrimary,
+        ) ||
+        distinctRelatedCareers.size !== report.relatedCareers.length
+      ) {
+        validationFeedback =
+          "\nThe previous primary title was too long, combined multiple roles, or duplicated another title. Use one distinct 2-to-5-word occupation.";
+        continue;
+      }
+
+      return Response.json({ report });
     }
 
-    return Response.json({ report: response.output_parsed });
+    throw new Error("The model could not produce a concise valid report.");
   } catch (error) {
     console.error("Career report generation failed:", error);
     return Response.json(

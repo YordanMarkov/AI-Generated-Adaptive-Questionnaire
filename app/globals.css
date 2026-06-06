@@ -658,6 +658,15 @@ input:focus-visible {
   margin-top: 34px;
 }
 
+.selection-hint {
+  color: var(--violet-bright);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  margin: 0 0 2px;
+  text-transform: uppercase;
+}
+
 .choice-option,
 .rank-item {
   align-items: center;
@@ -1015,8 +1024,40 @@ input:focus-visible {
   font-size: clamp(48px, 7vw, 76px);
   font-weight: 540;
   letter-spacing: -0.065em;
-  line-height: 1.02;
-  margin: 14px 0 24px;
+  display: inline-block;
+  line-height: 1.12;
+  margin: 14px 0 18px;
+  max-width: 100%;
+  overflow: visible;
+  padding: 0 0.04em 0.14em;
+  text-wrap: balance;
+}
+
+.related-careers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  list-style: none;
+  margin: 0 auto 22px;
+  max-width: 720px;
+  padding: 0;
+}
+
+.related-careers li {
+  background: rgba(155, 140, 255, 0.08);
+  border: 1px solid rgba(185, 173, 255, 0.16);
+  border-radius: 99px;
+  color: #c7c1e8;
+  display: inline-flex;
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 7px 11px;
+  white-space: normal;
+}
+
+.career-separator {
+  display: none;
 }
 
 .result-hero > p:not(.section-label) {

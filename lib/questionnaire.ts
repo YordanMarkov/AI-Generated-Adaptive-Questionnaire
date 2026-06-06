@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const questionTypes = [
   "choice",
+  "multi-select",
   "slider",
   "text",
   "ranking",
@@ -23,6 +24,7 @@ export const questionSchema = z.object({
   options: z.array(z.string().min(1).max(120)).max(6).optional(),
   minLabel: z.string().min(1).max(80).optional(),
   maxLabel: z.string().min(1).max(80).optional(),
+  topic: z.string().min(1).max(160).optional(),
   personalized: z.boolean().optional(),
 });
 
@@ -32,7 +34,7 @@ export const historyEntrySchema = z.object({
 });
 
 export const sessionRequestSchema = z.object({
-  history: z.array(historyEntrySchema).min(3).max(9),
+  history: z.array(historyEntrySchema).min(3).max(20),
 });
 
 export type Answer = z.infer<typeof answerSchema>;
@@ -47,6 +49,7 @@ export type AlternativeDirection = {
 
 export type CareerReport = {
   primaryDirection: string;
+  relatedCareers: string[];
   confidence: number;
   confidenceLabel: string;
   summary: string;
@@ -58,17 +61,17 @@ export type CareerReport = {
 };
 
 export const MIN_ANSWERS = 5;
-export const MAX_ANSWERS = 9;
-export const CONFIDENCE_THRESHOLD = 0.78;
+export const MAX_ANSWERS = 20;
 
 export const initialQuestions: Question[] = [
   {
     id: "energy",
     eyebrow: "Let's begin broadly",
-    title: "Which kind of work gives you the most energy?",
+    title: "Which kinds of work give you the most energy?",
     description:
-      "Choose the answer that feels most natural. There are no right or wrong directions here.",
-    type: "choice",
+      "Choose every answer that feels natural. There are no right or wrong directions here.",
+    type: "multi-select",
+    topic: "broad sources of work energy and interest",
     options: [
       "Building and making things",
       "Understanding people and their needs",
@@ -83,6 +86,7 @@ export const initialQuestions: Question[] = [
     description:
       "Describe the moments, pace, or kind of progress that would make you look forward to tomorrow.",
     type: "text",
+    topic: "preferred workday, pace, and environment",
   },
   {
     id: "collaboration",
@@ -91,13 +95,21 @@ export const initialQuestions: Question[] = [
     description:
       "Use the scale to show your natural preference. Neither end is better than the other.",
     type: "slider",
+    topic: "preferred level of collaboration and social interaction",
     minLabel: "Independent focus",
     maxLabel: "Highly collaborative",
   },
 ];
 
-export function formatAnswer(answer: Answer): string {
+export function formatAnswer(
+  answer: Answer,
+  questionType?: Question["type"],
+): string {
   if (Array.isArray(answer)) {
+    if (questionType === "multi-select") {
+      return `Selected: ${answer.join(", ")}`;
+    }
+
     return answer.map((item, index) => `${index + 1}. ${item}`).join("; ");
   }
 
@@ -108,11 +120,99 @@ export function formatAnswer(answer: Answer): string {
   return answer;
 }
 
+const ignoredSimilarityWords = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "do",
+  "does",
+  "for",
+  "how",
+  "in",
+  "is",
+  "most",
+  "of",
+  "or",
+  "the",
+  "to",
+  "what",
+  "when",
+  "which",
+  "with",
+  "work",
+  "would",
+  "you",
+  "your",
+]);
+
+function meaningfulWords(value: string): Set<string> {
+  return new Set(
+    value
+      .toLowerCase()
+      .normalize("NFKD")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .split(/\s+/)
+      .filter((word) => word.length > 2 && !ignoredSimilarityWords.has(word)),
+  );
+}
+
+function wordSetSimilarity(leftWords: Set<string>, rightWords: Set<string>) {
+  if (leftWords.size === 0 || rightWords.size === 0) return 0;
+
+  const intersection = [...leftWords].filter((word) =>
+    rightWords.has(word),
+  ).length;
+  const union = new Set([...leftWords, ...rightWords]).size;
+
+  return intersection / union;
+}
+
+export function questionSimilarity(left: Question, right: Question): number {
+  const combinedSimilarity = wordSetSimilarity(
+    meaningfulWords(
+    `${left.title} ${left.description} ${left.topic ?? ""}`,
+    ),
+    meaningfulWords(
+      `${right.title} ${right.description} ${right.topic ?? ""}`,
+    ),
+  );
+  const titleSimilarity = wordSetSimilarity(
+    meaningfulWords(left.title),
+    meaningfulWords(right.title),
+  );
+  const topicSimilarity = wordSetSimilarity(
+    meaningfulWords(left.topic ?? ""),
+    meaningfulWords(right.topic ?? ""),
+  );
+
+  return Math.max(combinedSimilarity, titleSimilarity, topicSimilarity);
+}
+
+export function containsUnexpectedScript(value: string): boolean {
+  return /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Cyrillic}\p{Script=Arabic}]/u.test(
+    value,
+  );
+}
+
+export function questionHasUnexpectedScript(question: Question): boolean {
+  return [
+    question.eyebrow,
+    question.title,
+    question.description,
+    ...(question.options ?? []),
+    question.minLabel ?? "",
+    question.maxLabel ?? "",
+  ].some(containsUnexpectedScript);
+}
+
 export function serializeHistory(history: HistoryEntry[]): string {
   return history
     .map(
       ({ question, answer }, index) =>
-        `${index + 1}. [${question.type}] ${question.title}\nAnswer: ${formatAnswer(answer)}`,
+        `${index + 1}. [${question.type}] ${question.title}\nTopic already covered: ${
+          question.topic ?? question.title
+        }\nAnswer: ${formatAnswer(answer, question.type)}`,
     )
     .join("\n\n");
 }
