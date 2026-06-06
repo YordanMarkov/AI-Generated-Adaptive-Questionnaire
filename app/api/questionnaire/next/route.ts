@@ -33,7 +33,7 @@ const generatedQuestionSchema = z.object({
     "ranking",
     "yes-no",
   ]),
-  options: z.array(z.string().min(1).max(120)).max(7),
+  options: z.array(z.string().min(1).max(120)).max(6),
   minLabel: z.string().min(1).max(80).nullable(),
   maxLabel: z.string().min(1).max(80).nullable(),
   evidenceGap: z.string().min(1).max(160),
@@ -68,7 +68,7 @@ function normalizeQuestion(
     "yes-no",
   ]);
   const options = optionTypes.has(generated.type)
-    ? generated.options.slice(0, generated.type === "yes-no" ? 3 : 7)
+    ? generated.options.slice(0, generated.type === "yes-no" ? 3 : 6)
     : undefined;
 
   if (optionTypes.has(generated.type) && (!options || options.length < 2)) {
@@ -180,6 +180,8 @@ The questionnaire is a reflective guidance tool, not a psychological test. Base 
 
 CAREER COVERAGE IS UNIVERSAL. Consider roles across retail and customer service, hospitality, food service, cleaning and facilities, logistics and warehousing, transport, skilled trades, manufacturing, construction, agriculture, healthcare, care work, education, public service, administration, finance, sales, arts, media, law, science, entrepreneurship, management, and technology. Ordinary roles such as cashier, shop assistant, server, receptionist, driver, warehouse worker, cleaner, caregiver, teacher, mechanic, electrician, and office administrator are valid outcomes. Never reinterpret "front end" as software unless the answers explicitly describe programming or digital interfaces. Do not privilege prestigious, degree-based, creative, or technology careers.
 
+Keep activity, setting, and career priority as separate evidence. Generic interests such as solving problems, making things, helping people, organizing, or creating do not identify an industry by themselves. Preserve plausible non-technology interpretations until the person explicitly supplies technology-specific evidence. When evidence is broad, compare occupations from meaningfully different sectors before narrowing.
+
 Maintain an information ledger before generating questions:
 1. Mark topics already resolved by prior answers.
 2. Identify concrete information gaps that would change the career ranking.
@@ -193,7 +195,7 @@ Generate exactly ${requestedCount} follow-up question${requestedCount === 1 ? ""
 - use choice for one mutually exclusive answer;
 - use multi-select whenever several options may truthfully apply;
 - use ranking only when order matters, slider only for intensity, text for nuance, and yes-no only for a real binary distinction;
-- have 2-7 concise options for choice, multi-select, ranking, or yes-no; otherwise options must be [];
+- have 2-6 concise, meaningfully distinct options for choice, multi-select, ranking, or yes-no; otherwise options must be [];
 - never ask for sensitive personal data;
 - keep descriptions user-facing and concise without revealing hidden reasoning.
 

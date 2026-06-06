@@ -61,6 +61,8 @@ This is reflective guidance, not a definitive assessment. Use only evidence in t
 
 Consider the full labor market equally: retail, customer service, hospitality, food service, cleaning, facilities, logistics, transport, skilled trades, manufacturing, construction, agriculture, healthcare, care work, education, public service, administration, finance, sales, arts, media, law, science, entrepreneurship, management, technology, and other supported work. Cashier, shop assistant, server, receptionist, driver, warehouse worker, cleaner, caregiver, teacher, mechanic, electrician, and office administrator are all legitimate primary results. Never convert retail "front end" into frontend software development without explicit evidence of coding or digital interface work.
 
+Interpret broad activities independently from work settings and career priorities. Problem-solving, making, organizing, helping, and creativity are cross-sector signals, not evidence of a technology career. Recommend technology only when the answers contain explicit technology-specific interest or experience.
+
 The primaryDirection is a single recognizable occupation or concise career family:
 - 2 to 5 words;
 - no slash, ampersand, subtitle, explanation, or combined list;

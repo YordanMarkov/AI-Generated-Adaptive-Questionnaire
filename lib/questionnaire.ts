@@ -12,7 +12,8 @@ export const questionTypes = [
 export const answerSchema = z.union([
   z.string().max(600),
   z.number().min(0).max(100),
-  z.array(z.string().max(160)).max(8),
+  // Accept answers from questionnaire versions that offered up to ten choices.
+  z.array(z.string().max(160)).max(10),
 ]);
 
 export const questionSchema = z.object({
@@ -21,7 +22,8 @@ export const questionSchema = z.object({
   title: z.string().min(1).max(180),
   description: z.string().min(1).max(320),
   type: z.enum(questionTypes),
-  options: z.array(z.string().min(1).max(120)).max(6).optional(),
+  // History may contain older questions; generation is capped separately.
+  options: z.array(z.string().min(1).max(120)).max(10).optional(),
   minLabel: z.string().min(1).max(80).optional(),
   maxLabel: z.string().min(1).max(80).optional(),
   topic: z.string().min(1).max(160).optional(),
@@ -67,37 +69,48 @@ export const initialQuestions: Question[] = [
   {
     id: "energy",
     eyebrow: "Let's begin broadly",
-    title: "Which kinds of work give you the most energy?",
+    title: "What kinds of activities give you energy?",
     description:
-      "Choose every answer that feels natural. There are no right or wrong directions here.",
+      "Think about the activity itself, not a job title. Choose every answer that feels natural.",
     type: "multi-select",
-    topic: "broad sources of work energy and interest",
+    topic:
+      "energizing work activities across practical, social, creative, analytical, commercial, operational, and outdoor work",
     options: [
-      "Building and making things",
-      "Understanding people and their needs",
-      "Finding patterns in complex information",
-      "Organizing people around a shared goal",
+      "Making, repairing, cooking, or working outdoors",
+      "Caring for, teaching, serving, or supporting people",
+      "Organizing records, schedules, stock, or processes",
+      "Investigating, analyzing, or solving difficult problems",
+      "Designing, writing, performing, or creating",
+      "Selling, persuading, leading, or coordinating people",
     ],
   },
   {
     id: "environment",
-    eyebrow: "Your ideal environment",
-    title: "What does a satisfying workday feel like to you?",
+    eyebrow: "Picture a good day",
+    title: "What would make a workday feel satisfying to you?",
     description:
-      "Describe the moments, pace, or kind of progress that would make you look forward to tomorrow.",
+      "Describe the people, setting, pace, or kind of progress that would make you want to return tomorrow.",
     type: "text",
-    topic: "preferred workday, pace, and environment",
+    topic:
+      "preferred workday including people, setting, pace, activities, and visible progress",
   },
   {
-    id: "collaboration",
-    eyebrow: "How you like to work",
-    title: "Where do you sit between deep focus and constant collaboration?",
+    id: "priorities",
+    eyebrow: "What work should give you",
+    title: "What matters most in your next career direction?",
     description:
-      "Use the scale to show your natural preference. Neither end is better than the other.",
-    type: "slider",
-    topic: "preferred level of collaboration and social interaction",
-    minLabel: "Independent focus",
-    maxLabel: "Highly collaborative",
+      "Select the things you would genuinely use to compare one job with another.",
+    type: "multi-select",
+    topic:
+      "career priorities including accessibility, security, balance, service, mastery, autonomy, variety, advancement, and earnings",
+    options: [
+      "A role I can enter quickly and learn while working",
+      "Reliable income, security, and predictable hours",
+      "Helping people or contributing to my community",
+      "Becoming highly skilled at practical or specialist work",
+      "Freedom, variety, movement, or creativity",
+      "Opportunities to advance, lead, or earn more",
+    ],
   },
 ];
 
