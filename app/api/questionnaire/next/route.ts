@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
-import { getOpenAIClient, OPENAI_MODEL } from "@/lib/openai";
+import {
+  getOpenAIClient,
+  logOpenAIUsage,
+  OPENAI_MODEL,
+} from "@/lib/openai";
 import {
   containsUnexpectedScript,
   MAX_ANSWERS,
@@ -37,8 +41,6 @@ const generatedQuestionSchema = z.object({
 
 const assessmentSchema = z.object({
   confidence: z.number().min(0).max(1),
-  enoughInformation: z.boolean(),
-  sessionSummary: z.string().min(1).max(500),
   exploredDimensions: z.array(
     z.enum([
       "interests",
@@ -53,9 +55,6 @@ const assessmentSchema = z.object({
       "responsibility",
     ]),
   ),
-  resolvedTopics: z.array(z.string().min(1).max(120)).max(20),
-  remainingInformationGaps: z.array(z.string().min(1).max(160)).max(10),
-  leadingDirections: z.array(z.string().min(1).max(100)).min(1).max(5),
   questions: z.array(generatedQuestionSchema).min(1).max(2),
 });
 
@@ -159,7 +158,6 @@ export async function POST(request: Request) {
         shouldStop: true,
         confidence: 1,
         summary: "The maximum questionnaire length has been reached.",
-        leadingDirections: [],
         questions: [],
       });
     }
@@ -174,8 +172,8 @@ export async function POST(request: Request) {
         const response = await getOpenAIClient().responses.parse({
           model: OPENAI_MODEL,
           store: false,
-          reasoning: { effort: "low" },
-          max_output_tokens: 2600,
+          reasoning: { effort: "none" },
+          max_output_tokens: 1200,
           instructions: `You design an adaptive career direction questionnaire for the full world of work.
 
 The questionnaire is a reflective guidance tool, not a psychological test. Base every conclusion only on supplied answers. Do not infer protected, medical, mental-health, or demographic traits. Write only in clear English using the Latin alphabet. Never output Chinese, Japanese, Korean, Cyrillic, Arabic, emoji, or decorative symbols.
@@ -199,7 +197,7 @@ Generate exactly ${requestedCount} follow-up question${requestedCount === 1 ? ""
 - never ask for sensitive personal data;
 - keep descriptions user-facing and concise without revealing hidden reasoning.
 
-Confidence measures whether the current evidence supports a useful, specific direction across the whole labor market. enoughInformation should be true only when another question is unlikely to materially change the primary direction or its closest alternatives.
+Confidence measures whether the current evidence supports a useful, specific direction across the whole labor market. Use the explored dimensions to show evidence coverage.
 ${rejectionNote}`,
           input: `Questionnaire history (${answeredCount} answers):
 
@@ -212,6 +210,11 @@ Assess coverage and generate ${requestedCount} non-repetitive question${requeste
         });
 
         const assessment = response.output_parsed;
+        logOpenAIUsage(
+          "questionnaire.next",
+          OPENAI_MODEL,
+          response.usage,
+        );
         if (!assessment) {
           rejectionNote =
             "\nThe previous attempt returned no structured assessment. Produce a complete valid response.";
@@ -232,8 +235,6 @@ Assess coverage and generate ${requestedCount} non-repetitive question${requeste
           return Response.json({
             shouldStop: true,
             confidence: assessment.confidence,
-            summary: assessment.sessionSummary,
-            leadingDirections: assessment.leadingDirections,
             questions: [],
           });
         }
@@ -248,8 +249,6 @@ Assess coverage and generate ${requestedCount} non-repetitive question${requeste
           return Response.json({
             shouldStop: false,
             confidence: assessment.confidence,
-            summary: assessment.sessionSummary,
-            leadingDirections: assessment.leadingDirections,
             questions,
           });
         } catch (validationError) {
@@ -272,9 +271,6 @@ Assess coverage and generate ${requestedCount} non-repetitive question${requeste
       return Response.json({
         shouldStop: true,
         confidence: lastAssessment?.confidence ?? 0.7,
-        summary:
-          "No sufficiently distinct follow-up question could add useful information.",
-        leadingDirections: lastAssessment?.leadingDirections ?? [],
         questions: [],
       });
     }

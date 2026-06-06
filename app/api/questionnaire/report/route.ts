@@ -1,7 +1,11 @@
 import { zodTextFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
-import { getOpenAIClient, OPENAI_MODEL } from "@/lib/openai";
+import {
+  getOpenAIClient,
+  logOpenAIUsage,
+  OPENAI_MODEL,
+} from "@/lib/openai";
 import {
   containsUnexpectedScript,
   MIN_ANSWERS,
@@ -49,8 +53,8 @@ export async function POST(request: Request) {
       const response = await getOpenAIClient().responses.parse({
         model: OPENAI_MODEL,
         store: false,
-        reasoning: { effort: "low" },
-        max_output_tokens: 3200,
+        reasoning: { effort: "none" },
+        max_output_tokens: 1800,
         instructions: `Create an explainable career direction report from the questionnaire history.
 
 This is reflective guidance, not a definitive assessment. Use only evidence in the answers. Do not invent traits, credentials, experience, or preferences. Do not diagnose personality, health, or mental state. Write only in clear English using the Latin alphabet. Never output Chinese, Japanese, Korean, Cyrillic, Arabic, emoji, or decorative symbols.
@@ -76,6 +80,7 @@ ${serializeHistory(payload.history)}`,
       });
 
       const report = response.output_parsed;
+      logOpenAIUsage("questionnaire.report", OPENAI_MODEL, response.usage);
 
       if (!report) {
         validationFeedback =

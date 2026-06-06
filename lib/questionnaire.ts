@@ -210,9 +210,7 @@ export function serializeHistory(history: HistoryEntry[]): string {
   return history
     .map(
       ({ question, answer }, index) =>
-        `${index + 1}. [${question.type}] ${question.title}\nTopic already covered: ${
-          question.topic ?? question.title
-        }\nAnswer: ${formatAnswer(answer, question.type)}`,
+        `${index + 1}|${question.type}|${question.topic ?? question.title}|${formatAnswer(answer, question.type)}`,
     )
-    .join("\n\n");
+    .join("\n");
 }

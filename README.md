@@ -16,6 +16,13 @@ OPENAI_API_KEY=your_openai_api_key_here
 The server defaults to `gpt-5.4-mini`. Override it with `OPENAI_MODEL` if
 needed. Never prefix the API key with `NEXT_PUBLIC_`.
 
+The questionnaire uses `reasoning.effort: none`, compact session history, and
+tight structured-output limits to keep typical API calls below one US cent.
+Server logs include an `openai_usage` JSON event with token counts and an
+estimated request cost. For an additional cost reduction, set
+`OPENAI_MODEL=gpt-5.4-nano`; keep the default mini model when recommendation
+quality is the priority.
+
 ```bash
 npm ci
 npm run dev
