@@ -9,7 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:repetition": "node --no-warnings --experimental-strip-types --test tests/question-repetition.test.ts"
   },
   "dependencies": {
     "next": "16.2.7",

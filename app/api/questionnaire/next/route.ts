@@ -9,11 +9,14 @@ import {
 } from "@/lib/openai";
 import {
   containsUnexpectedScript,
+  inferQuestionFocus,
   MAX_ANSWERS,
   MIN_ANSWERS,
   questionHasUnexpectedScript,
+  questionFocuses,
   questionSchema,
   questionSimilarity,
+  questionsRepeatFocus,
   serializeHistory,
   sessionRequestSchema,
   type Question,
@@ -37,6 +40,7 @@ const generatedQuestionSchema = z.object({
   minLabel: z.string().min(1).max(80).nullable(),
   maxLabel: z.string().min(1).max(80).nullable(),
   evidenceGap: z.string().min(1).max(160),
+  focus: z.enum(questionFocuses),
 });
 
 const assessmentSchema = z.object({
@@ -91,6 +95,7 @@ function normalizeQuestion(
         ? generated.maxLabel || "Very strongly"
         : undefined,
     topic: generated.evidenceGap,
+    focus: generated.focus,
     personalized: true,
   });
 }
@@ -119,6 +124,16 @@ function validateUniqueQuestions(
     }
 
     const comparisonSet = [...historyQuestions, ...normalized.slice(0, index)];
+    const repeatedFocusQuestion = comparisonSet.find((previous) =>
+      questionsRepeatFocus(question, previous),
+    );
+
+    if (repeatedFocusQuestion) {
+      throw new Error(
+        `Generated question repeated the "${question.focus}" focus already covered by "${repeatedFocusQuestion.title}".`,
+      );
+    }
+
     const highestSimilarity = Math.max(
       0,
       ...comparisonSet.map((previous) =>
@@ -164,6 +179,14 @@ export async function POST(request: Request) {
 
     const requestedCount = Math.min(2, MAX_ANSWERS - answeredCount);
     const historyQuestions = payload.history.map(({ question }) => question);
+    const coveredFocuses = [
+      ...new Set(
+        historyQuestions.flatMap((question) => {
+          const focus = inferQuestionFocus(question);
+          return focus ? [focus] : [];
+        }),
+      ),
+    ];
     let lastAssessment: z.infer<typeof assessmentSchema> | null = null;
     let rejectionNote = "";
 
@@ -187,6 +210,12 @@ Maintain an information ledger before generating questions:
 2. Identify concrete information gaps that would change the career ranking.
 3. Ask only about unresolved gaps.
 
+FOCUS CONTROL:
+- Assign exactly one canonical focus to each new question.
+- Never reuse a focus already covered in the history or elsewhere in the same generated round.
+- Treat a focus as one user-level decision, not one version per possible career. Work location, commute, relocation, remote/on-site preference, indoor/outdoor work, and workplace setting all belong to work_setting_and_location and may be asked at most once.
+- When a multi-select answer contains several interests, never ask the same constraint separately for each selected interest. Ask one comparative question spanning those interests, or move to a different unresolved focus.
+
 Generate exactly ${requestedCount} follow-up question${requestedCount === 1 ? "" : "s"}. Each must:
 - collect substantively new information, not rephrase or rescale an earlier question;
 - have a different evidenceGap from every previous question and from the other new question;
@@ -204,6 +233,8 @@ ${rejectionNote}`,
           input: `Questionnaire history (${answeredCount} answers):
 
 ${serializeHistory(payload.history)}
+
+Canonical focuses already covered: ${coveredFocuses.length > 0 ? coveredFocuses.join(", ") : "none explicitly tagged"}
 
 Assess coverage and generate ${requestedCount} non-repetitive question${requestedCount === 1 ? "" : "s"}.`,
           text: {

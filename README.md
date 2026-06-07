@@ -93,7 +93,10 @@ only when the answers provide technology-specific evidence.
 Additional deterministic checks:
 
 - Zod schemas validate every API request and model response.
-- Generated questions are compared with earlier questions for similarity.
+- Generated questions are compared with earlier questions using lexical
+  similarity and canonical topic focuses.
+- Location, commute, remote/on-site, indoor/outdoor, and workplace-setting
+  variants are treated as one focus and can be asked only once.
 - Invalid option counts and incomplete response rounds are rejected.
 - Unexpected writing systems are rejected to prevent random symbol output.
 - Primary result titles are constrained to one concise, searchable direction.
@@ -165,6 +168,7 @@ Then open [http://localhost:3000](http://localhost:3000).
 ```bash
 npm run dev      # Start the local development server
 npm run lint     # Run ESLint
+npm run test:repetition # Test semantic repetition safeguards
 npm run build    # Create and validate a production build
 npm run start    # Run the production build
 ```
@@ -241,7 +245,9 @@ not inside a nested package directory.
 - Confidence is an evidence-quality indicator, not a probability of success.
 - The prototype does not verify qualifications, local vacancies, salaries, or
   education requirements.
-- Similarity detection is lexical and may miss conceptually repeated questions.
+- Repetition detection combines controlled focus tags with keyword and lexical
+  comparison, but novel paraphrases may still require prompt or taxonomy
+  refinement.
 - The application currently supports English only.
 - There are no user accounts, saved sessions, analytics, or database records.
 - AI output can still be imperfect despite schema and validation safeguards.

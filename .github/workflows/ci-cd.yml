@@ -38,6 +38,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Test question repetition safeguards
+        run: npm run test:repetition
+
       - name: Build
         run: npm run build
 
